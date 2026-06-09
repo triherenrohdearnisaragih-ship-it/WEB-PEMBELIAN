@@ -1,8 +1,8 @@
 # WEB-PEMBELIAN
-Aplikasi PURCHASE FLOW adalah aplikasi manajemen pembelian berbasis R Shiny yang membantu perusahaan mengelola proses pengadaan barang secara terintegrasi. Fitur utamanya meliputi Purchase Requisition, Purchase Order, Receive Item, Purchase Return, Purchase Payment, serta Summary Report untuk memantau transaksi pembelian secara cepat dan akurat.
+Aplikasi Web Pembelian adalah aplikasi manajemen pembelian berbasis R Shiny yang membantu perusahaan mengelola proses pengadaan barang secara terintegrasi. Fitur utamanya meliputi Purchase Requisition, Purchase Order, Receive Item, Purchase Return, Purchase Payment, serta Summary Report untuk memantau transaksi pembelian secara cepat dan akurat.
 📦 **PURCHASE FLOW – Aplikasi Modul Pembelian Berbasis R Shiny**
 
-PURCHASE FLOW adalah aplikasi berbasis **R Shiny** yang dirancang untuk mengelola seluruh proses pembelian barang secara terintegrasi, mulai dari pengajuan kebutuhan hingga pembayaran kepada pemasok. Aplikasi ini dikembangkan dengan mengadopsi alur kerja pada sistem ERP ACCURATE 5 sehingga mampu mensimulasikan proses bisnis pembelian secara realistis, efisien, dan mudah digunakan.
+Web Pembelian adalah aplikasi berbasis **R Shiny** yang dirancang untuk mengelola seluruh proses pembelian barang secara terintegrasi, mulai dari pengajuan kebutuhan hingga pembayaran kepada pemasok. Aplikasi ini dikembangkan dengan mengadopsi alur kerja pada sistem ERP ACCURATE 5 sehingga mampu mensimulasikan proses bisnis pembelian secara realistis, efisien, dan mudah digunakan.
 
 ✨ **Fitur Utama**
 
@@ -32,4 +32,4 @@ Jalankan aplikasi melalui RStudio, kemudian masukkan data pembelian pada menu **
 
 Data saat ini disimpan menggunakan file CSV lokal sehingga cocok untuk kebutuhan pembelajaran, simulasi ERP, dan pengelolaan data skala kecil. Untuk implementasi yang lebih besar, sistem dapat dikembangkan dengan integrasi database seperti MySQL atau PostgreSQL.
 
-🚀 **PURCHASE FLOW membantu perusahaan meningkatkan efisiensi, akurasi, dan transparansi proses pengadaan dalam satu platform digital yang terintegrasi.**
+🚀 **Web Pembelian membantu perusahaan meningkatkan efisiensi, akurasi, dan transparansi proses pengadaan dalam satu platform digital yang terintegrasi.**
