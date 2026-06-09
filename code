@@ -1,0 +1,1267 @@
+library(shiny)
+
+# Define UI with explicit tabsetPanel ID
+ui <- fluidPage(
+  tags$head(
+    tags$style(HTML("
+      .summary-box {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        padding: 15px;
+        margin-bottom: 20px;
+      }
+      .return-invoice {
+        font-family: monospace;
+        background-color: #f8f9fa;
+        padding: 20px;
+        border: 2px solid #333;
+        margin-top: 20px;
+      }
+      .final-invoice {
+        font-family: 'Arial', sans-serif;
+        background-color: #e8f5e9;
+        padding: 25px;
+        border: 2px solid #4caf50;
+        margin-top: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      }
+      .final-invoice h3 {
+        color: #2e7d32;
+        margin-top: 0;
+        margin-bottom: 20px;
+        font-size: 24px;
+      }
+      .final-invoice table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        font-size: 14px;
+      }
+      .final-invoice th {
+        background-color: #4caf50;
+        color: white;
+        padding: 12px;
+        text-align: center;
+        font-weight: bold;
+        border: 1px solid #ddd;
+      }
+      .final-invoice td {
+        padding: 10px;
+        text-align: left;
+        border: 1px solid #ddd;
+      }
+      .progress-bar-custom {
+        width: 100%;
+        background-color: #e0e0e0;
+        border-radius: 10px;
+        overflow: hidden;
+        height: 20px;
+      }
+      .progress-fill {
+        height: 100%;
+        transition: width 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 11px;
+        font-weight: bold;
+      }
+      .invoice-card {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        overflow: hidden;
+      }
+      .invoice-header {
+        background-color: #2196f3;
+        color: white;
+        padding: 12px 15px;
+        cursor: pointer;
+      }
+      .invoice-body {
+        padding: 15px;
+        display: none;
+      }
+      .invoice-body.show {
+        display: block;
+      }
+      .btn-status {
+        margin: 2px;
+        padding: 4px 8px;
+        font-size: 11px;
+      }
+      .status-control {
+        margin-top: 10px;
+        padding: 10px;
+        background-color: #f5f5f5;
+        border-radius: 5px;
+      }
+      .qty-input-group {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .qty-input-group input {
+        width: 80px;
+        margin: 0;
+      }
+      .status-lengkap {
+        background-color: #4caf50;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        display: inline-block;
+      }
+      .status-belum-lengkap {
+        background-color: #ff9800;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        display: inline-block;
+      }
+      .status-belum-diterima {
+        background-color: #f44336;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        display: inline-block;
+      }
+      .invoice-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+      .invoice-table th, .invoice-table td {
+        border: 1px solid #ddd;
+        padding: 10px;
+        text-align: left;
+      }
+      .invoice-table th {
+        background-color: #4caf50;
+        color: white;
+      }
+    "))
+  ),
+  
+  titlePanel("📦 Sistem Purchase & Return Barang"),
+  
+  tabsetPanel(id = "main_tabs",
+              tabPanel("📝 Input Purchase", value = "input_purchase",
+                       fluidRow(
+                         column(12,
+                                h3("Informasi Invoice"),
+                                wellPanel(
+                                  fluidRow(
+                                    column(3, textInput("invoice_no", "No. Invoice", value = paste0("PR-", format(Sys.Date(), "%Y%m%d"), "-001"))),
+                                    column(3, dateInput("tanggal", "Tanggal", value = Sys.Date())),
+                                    column(3, textInput("nama_peminta", "Nama Peminta", value = ""))
+                                  )
+                                )
+                         )
+                       ),
+                       
+                       fluidRow(
+                         column(12,
+                                h3("Daftar Barang"),
+                                wellPanel(
+                                  fluidRow(
+                                    column(3, textInput("kode_barang", "Kode Barang", placeholder = "ITM-XXX")),
+                                    column(3, textInput("nama_barang", "Nama Barang")),
+                                    column(2, numericInput("harga_barang", "Harga", value = 0, min = 0)),
+                                    column(2, numericInput("quantity_barang", "Quantity", value = 1, min = 1)),
+                                    column(2, br(), actionButton("add_barang", "Tambah Barang", class = "btn-primary"))
+                                  ),
+                                  hr(),
+                                  h4("Daftar Barang yang Akan Dibeli:"),
+                                  tableOutput("table_purchase")
+                                )
+                         )
+                       ),
+                       
+                       fluidRow(
+                         column(12,
+                                actionButton("save_purchase", "💾 Simpan Purchase", class = "btn-success", style = "margin-right: 10px"),
+                                actionButton("reset_form", "🔄 Reset Form", class = "btn-secondary")
+                         )
+                       )
+              ),
+              
+              tabPanel("📋 Data Purchase", value = "data_purchase",
+                       h3("Riwayat Purchase"),
+                       tableOutput("table_saved_purchases"),
+                       br(),
+                       fluidRow(
+                         column(6, selectInput("select_invoice_return", "Pilih Invoice untuk Return", choices = c(""))),
+                         column(6, br(), actionButton("load_for_return", "📦 Proses Return", class = "btn-warning"))
+                       )
+              ),
+              
+              tabPanel("⚙️ Manage Data", value = "manage_data",
+                       h3("Kelola Data Purchase"),
+                       div(style = "overflow-x: auto;",
+                           uiOutput("manage_purchases_ui")
+                       ),
+                       br(),
+                       h3("Kelola Data Return"),
+                       div(style = "overflow-x: auto;",
+                           uiOutput("manage_returns_ui")
+                       )
+              ),
+              
+              tabPanel("🔄 Process Return", value = "process_return",
+                       h3("Formulir Purchase Return"),
+                       wellPanel(
+                         fluidRow(
+                           column(3, textInput("return_invoice_no", "No. PR", value = "")),
+                           column(3, dateInput("return_tanggal", "Tanggal", value = Sys.Date())),
+                           column(3, textInput("return_nama_peminta", "Peminta", value = "")),
+                           column(3, textInput("return_status", "Status", value = "Return Diproses"))
+                         )
+                       ),
+                       
+                       h4("Pilih Barang untuk Return"),
+                       wellPanel(
+                         fluidRow(
+                           column(4, selectInput("select_return_barang", "Pilih Barang", choices = NULL)),
+                           column(3, numericInput("jumlah_rusak", "Jumlah Rusak Total", value = 0, min = 0)),
+                           column(3, numericInput("jumlah_rusak_parsial", "Jumlah Rusak Parsial", value = 0, min = 0)),
+                           column(2, br(), actionButton("add_return", "Tambah Return", class = "btn-primary"))
+                         )
+                       ),
+                       
+                       h4("Daftar Return"),
+                       tableOutput("table_return_list"),
+                       
+                       br(),
+                       actionButton("process_return", "✅ Proses Return & Refund", class = "btn-success"),
+                       actionButton("print_return", "🖨️ Cetak Invoice Return", class = "btn-info"),
+                       
+                       uiOutput("return_invoice_display")
+              ),
+              
+              tabPanel("📊 Summary Report", value = "summary_report",
+                       h3("Ringkasan Purchase & Return"),
+                       
+                       div(class = "final-invoice",
+                           h3("🏷️ INVOICE AKHIR - STATUS PENERIMAAN PER BARANG", align = "center"),
+                           hr(),
+                           uiOutput("final_invoice_display")
+                       ),
+                       
+                       br(),
+                       h3("Detail Transaksi Purchase"),
+                       tableOutput("table_summary"),
+                       
+                       br(),
+                       h3("Detail Return per Invoice"),
+                       tableOutput("table_return_summary"),
+                       
+                       br(),
+                       h3("Informasi Kerusakan Barang"),
+                       verbatimTextOutput("damage_summary")
+              )
+  )
+)
+
+# Helper function to format currency
+format_rupiah <- function(x) {
+  if(is.na(x) || x == 0) return("Rp 0")
+  formatted <- format(round(x), big.mark = ".", decimal.mark = ",", scientific = FALSE)
+  formatted <- gsub("\\.00$", "", formatted)
+  formatted <- gsub(",00$", "", formatted)
+  return(paste0("Rp ", formatted))
+}
+
+# Function to calculate discount
+calculate_discount <- function(quantity, price) {
+  if(quantity > 500) {
+    discount <- price * quantity * 0.05
+    return(list(discount = discount, has_discount = TRUE))
+  } else {
+    return(list(discount = 0, has_discount = FALSE))
+  }
+}
+
+calculate_ppn_tax <- function(amount) {
+  return(amount * 0.11)
+}
+
+# Define Server
+server <- function(input, output, session) {
+  
+  # Reactive values
+  values <- reactiveValues(
+    current_purchase = data.frame(
+      Kode = character(), Barang = character(), Harga = numeric(),
+      Quantity = numeric(), Discount = numeric(), Discount_Amount = numeric(),
+      After_Discount = numeric(), stringsAsFactors = FALSE
+    ),
+    all_purchases = list(),
+    current_return = data.frame(
+      Barang = character(), Rusak = numeric(), Rusak_Parsial = numeric(),
+      Harga = numeric(), Total_Refund = numeric(), stringsAsFactors = FALSE
+    ),
+    return_list = list(),
+    last_processed_return = NULL,
+    current_purchase_data = NULL,
+    editing_invoice = NULL,
+    received_quantities = list(),
+    updating = FALSE,
+    trigger = 0
+  )
+  
+  # Helper functions
+  get_received_quantity <- function(invoice_no, item_name, original_qty) {
+    if(!is.null(values$received_quantities[[invoice_no]]) && 
+       !is.null(values$received_quantities[[invoice_no]][[item_name]])) {
+      return(values$received_quantities[[invoice_no]][[item_name]])
+    }
+    return(original_qty)
+  }
+  
+  get_returned_quantity <- function(invoice_no, item_name) {
+    if(is.null(values$return_list[[invoice_no]])) return(0)
+    return_data <- values$return_list[[invoice_no]]
+    if(item_name %in% return_data$Return_Items$Barang) {
+      idx <- which(return_data$Return_Items$Barang == item_name)
+      return(return_data$Return_Items$Rusak[idx] + return_data$Return_Items$Rusak_Parsial[idx])
+    }
+    return(0)
+  }
+  
+  calculate_invoice_payment <- function(invoice_no) {
+    if(is.null(values$all_purchases[[invoice_no]])) {
+      return(list(subtotal=0, discount=0, ppn=0, total=0, items_detail=list()))
+    }
+    
+    purchase_data <- values$all_purchases[[invoice_no]]
+    items <- purchase_data$Barang
+    total_received_value <- 0
+    total_discount <- 0
+    items_detail <- list()
+    
+    for(i in 1:nrow(items)) {
+      item <- items[i, ]
+      original_qty <- item$Quantity
+      harga <- item$Harga
+      
+      received_qty <- get_received_quantity(invoice_no, item$Barang, original_qty)
+      returned_qty <- get_returned_quantity(invoice_no, item$Barang)
+      
+      if(received_qty + returned_qty > original_qty) {
+        received_qty <- original_qty - returned_qty
+        if(received_qty < 0) received_qty <- 0
+      }
+      
+      item_total <- received_qty * harga
+      
+      discount_amount <- 0
+      if(original_qty > 500) {
+        discount_amount <- item_total * 0.05
+        total_discount <- total_discount + discount_amount
+        item_total <- item_total - discount_amount
+      }
+      
+      total_received_value <- total_received_value + item_total
+      
+      items_detail[[item$Barang]] <- list(
+        original_qty = original_qty,
+        received_qty = received_qty,
+        returned_qty = returned_qty,
+        price = harga,
+        item_total = item_total,
+        discount = discount_amount
+      )
+    }
+    
+    ppn <- total_received_value * 0.11
+    total_payment <- total_received_value + ppn
+    
+    return(list(
+      subtotal = total_received_value,
+      discount = total_discount,
+      ppn = ppn,
+      total = total_payment,
+      items_detail = items_detail
+    ))
+  }
+  
+  calculate_total_refund <- function(invoice_no) {
+    if(is.null(values$return_list[[invoice_no]])) return(0)
+    return(sum(values$return_list[[invoice_no]]$Return_Items$Total_Refund))
+  }
+  
+  refresh_dropdowns <- function() {
+    choices_list <- names(values$all_purchases)
+    if(length(choices_list) == 0) choices_list <- c("")
+    updateSelectInput(session, "select_invoice_return", choices = choices_list)
+  }
+  
+  initialize_received_quantities <- function(invoice_no) {
+    if(is.null(values$all_purchases[[invoice_no]])) return()
+    
+    purchase_data <- values$all_purchases[[invoice_no]]
+    if(is.null(values$received_quantities[[invoice_no]])) {
+      values$received_quantities[[invoice_no]] <- list()
+    }
+    
+    for(i in 1:nrow(purchase_data$Barang)) {
+      item <- purchase_data$Barang[i, ]
+      if(is.null(values$received_quantities[[invoice_no]][[item$Barang]])) {
+        values$received_quantities[[invoice_no]][[item$Barang]] <- item$Quantity
+      }
+    }
+  }
+  
+  update_received_quantity <- function(invoice_no, item_name, new_received_qty) {
+    if(values$updating) return()
+    values$updating <- TRUE
+    
+    if(!is.null(values$all_purchases[[invoice_no]])) {
+      purchase_data <- values$all_purchases[[invoice_no]]
+      original_qty <- purchase_data$Barang$Quantity[purchase_data$Barang$Barang == item_name]
+      returned_qty <- get_returned_quantity(invoice_no, item_name)
+      
+      max_receive <- original_qty - returned_qty
+      if(max_receive < 0) max_receive <- 0
+      if(new_received_qty < 0) new_received_qty <- 0
+      if(new_received_qty > max_receive) new_received_qty <- max_receive
+      
+      if(is.null(values$received_quantities[[invoice_no]])) {
+        values$received_quantities[[invoice_no]] <- list()
+      }
+      
+      values$received_quantities[[invoice_no]][[item_name]] <- new_received_qty
+    }
+    
+    values$updating <- FALSE
+    values$trigger <- values$trigger + 1
+  }
+  
+  # Add barang
+  observeEvent(input$add_barang, {
+    if(input$kode_barang != "" && input$nama_barang != "" && input$harga_barang > 0) {
+      discount_info <- calculate_discount(input$quantity_barang, input$harga_barang)
+      after_discount <- (input$harga_barang * input$quantity_barang) - discount_info$discount
+      
+      new_row <- data.frame(
+        Kode = input$kode_barang, Barang = input$nama_barang, Harga = input$harga_barang,
+        Quantity = input$quantity_barang, Discount = ifelse(discount_info$has_discount, 5, 0),
+        Discount_Amount = discount_info$discount, After_Discount = after_discount,
+        stringsAsFactors = FALSE
+      )
+      values$current_purchase <- rbind(values$current_purchase, new_row)
+      
+      updateTextInput(session, "kode_barang", value = "")
+      updateTextInput(session, "nama_barang", value = "")
+      updateNumericInput(session, "harga_barang", value = 0)
+      updateNumericInput(session, "quantity_barang", value = 1)
+      
+      showNotification("Barang berhasil ditambahkan", type = "message")
+    } else {
+      showNotification("Mohon lengkapi data barang", type = "warning")
+    }
+  })
+  
+  output$table_purchase <- renderTable({
+    req(nrow(values$current_purchase) > 0)
+    df <- values$current_purchase
+    data.frame(
+      Kode = df$Kode, Barang = df$Barang,
+      Harga = sapply(df$Harga, format_rupiah),
+      Quantity = df$Quantity,
+      Diskon = ifelse(df$Discount > 0, paste0(df$Discount, "%"), "-"),
+      Total = sapply(df$After_Discount, format_rupiah)
+    )
+  }, striped = TRUE, hover = TRUE, bordered = TRUE)
+  
+  # Save purchase
+  observeEvent(input$save_purchase, {
+    if(nrow(values$current_purchase) == 0) {
+      showNotification("Tidak ada barang!", type = "warning")
+      return()
+    }
+    if(input$nama_peminta == "") {
+      showNotification("Isi Nama Peminta!", type = "warning")
+      return()
+    }
+    
+    values$all_purchases[[input$invoice_no]] <- list(
+      Informasi = data.frame(
+        Invoice = input$invoice_no, Tanggal = as.character(input$tanggal),
+        Nama_Peminta = input$nama_peminta, stringsAsFactors = FALSE
+      ),
+      Barang = values$current_purchase
+    )
+    
+    values$received_quantities[[input$invoice_no]] <- list()
+    for(i in 1:nrow(values$current_purchase)) {
+      item <- values$current_purchase[i, ]
+      values$received_quantities[[input$invoice_no]][[item$Barang]] <- item$Quantity
+    }
+    
+    refresh_dropdowns()
+    values$trigger <- values$trigger + 1
+    
+    values$current_purchase <- data.frame(
+      Kode = character(), Barang = character(), Harga = numeric(),
+      Quantity = numeric(), Discount = numeric(), Discount_Amount = numeric(),
+      After_Discount = numeric(), stringsAsFactors = FALSE
+    )
+    
+    updateTextInput(session, "invoice_no", value = paste0("PR-", format(Sys.Date(), "%Y%m%d"), "-", 
+                                                          sprintf("%03d", length(values$all_purchases) + 1)))
+    updateTextInput(session, "nama_peminta", value = "")
+    
+    showNotification("Purchase berhasil disimpan!", type = "message")
+  })
+  
+  # Reset form
+  observeEvent(input$reset_form, {
+    values$current_purchase <- data.frame(
+      Kode = character(), Barang = character(), Harga = numeric(),
+      Quantity = numeric(), Discount = numeric(), Discount_Amount = numeric(),
+      After_Discount = numeric(), stringsAsFactors = FALSE
+    )
+    showNotification("Form telah direset", type = "message")
+  })
+  
+  # Display saved purchases
+  output$table_saved_purchases <- renderTable({
+    req(length(values$all_purchases) > 0)
+    summary_list <- list()
+    for(inv in names(values$all_purchases)) {
+      info <- values$all_purchases[[inv]]$Informasi
+      payment <- calculate_invoice_payment(inv)
+      refund <- calculate_total_refund(inv)
+      final_amount <- payment$total - refund
+      
+      summary_list[[inv]] <- data.frame(
+        Invoice = info$Invoice, Tanggal = info$Tanggal, Peminta = info$Nama_Peminta,
+        Subtotal = format_rupiah(payment$subtotal), Diskon = format_rupiah(payment$discount),
+        PPN_11 = format_rupiah(payment$ppn), Total_Dibayar = format_rupiah(final_amount),
+        stringsAsFactors = FALSE
+      )
+    }
+    do.call(rbind, summary_list)
+  }, striped = TRUE, hover = TRUE, bordered = TRUE)
+  
+  # Manage UI
+  output$manage_purchases_ui <- renderUI({
+    req(length(values$all_purchases) > 0)
+    rows <- lapply(names(values$all_purchases), function(inv) {
+      info <- values$all_purchases[[inv]]$Informasi
+      payment <- calculate_invoice_payment(inv)
+      tags$tr(
+        tags$td(info$Invoice), tags$td(info$Tanggal), tags$td(info$Nama_Peminta),
+        tags$td(format_rupiah(payment$total)),
+        tags$td(
+          tags$button(class = "btn btn-warning btn-sm", style = "margin-right: 5px;",
+                      onclick = sprintf("Shiny.setInputValue('edit_invoice', '%s', {priority: 'event'})", inv), "✏️ Edit"),
+          tags$button(class = "btn btn-danger btn-sm",
+                      onclick = sprintf("if(confirm('Hapus purchase %s?')) Shiny.setInputValue('delete_invoice', '%s', {priority: 'event'})", inv, inv), "🗑️ Hapus")
+        )
+      )
+    })
+    tagList(
+      tags$table(class = "table table-bordered table-striped",
+                 tags$thead(tags$tr(tags$th("Invoice"), tags$th("Tanggal"), tags$th("Peminta"), tags$th("Total Akhir"), tags$th("Aksi"))),
+                 tags$tbody(rows)
+      )
+    )
+  })
+  
+  output$manage_returns_ui <- renderUI({
+    req(length(values$return_list) > 0)
+    rows <- lapply(names(values$return_list), function(inv) {
+      info <- values$return_list[[inv]]$Informasi
+      tags$tr(
+        tags$td(info$Invoice), tags$td(info$Tanggal), tags$td(info$Peminta),
+        tags$td(format_rupiah(info$Total_Refund)),
+        tags$td(
+          tags$button(class = "btn btn-danger btn-sm",
+                      onclick = sprintf("if(confirm('Hapus return untuk %s?')) Shiny.setInputValue('delete_return_invoice', '%s', {priority: 'event'})", inv, inv), "🗑️ Hapus Return")
+        )
+      )
+    })
+    tagList(
+      tags$table(class = "table table-bordered table-striped",
+                 tags$thead(tags$tr(tags$th("Invoice"), tags$th("Tanggal"), tags$th("Peminta"), tags$th("Total Refund"), tags$th("Aksi"))),
+                 tags$tbody(rows)
+      )
+    )
+  })
+  
+  observeEvent(input$delete_invoice, {
+    inv <- input$delete_invoice
+    if(!is.null(inv) && inv %in% names(values$all_purchases)) {
+      values$all_purchases[[inv]] <- NULL
+      values$return_list[[inv]] <- NULL
+      values$received_quantities[[inv]] <- NULL
+      refresh_dropdowns()
+      values$trigger <- values$trigger + 1
+      showNotification(paste("Purchase", inv, "dihapus!"), type = "message")
+    }
+  })
+  
+  observeEvent(input$delete_return_invoice, {
+    inv <- input$delete_return_invoice
+    if(!is.null(inv) && inv %in% names(values$return_list)) {
+      values$return_list[[inv]] <- NULL
+      if(!is.null(values$all_purchases[[inv]])) {
+        initialize_received_quantities(inv)
+      }
+      values$trigger <- values$trigger + 1
+      showNotification(paste("Return untuk", inv, "dihapus!"), type = "message")
+    }
+  })
+  
+  observeEvent(input$edit_invoice, {
+    inv <- input$edit_invoice
+    if(!is.null(inv) && inv %in% names(values$all_purchases)) {
+      purchase_data <- values$all_purchases[[inv]]
+      showModal(modalDialog(
+        title = paste("Edit Purchase -", inv), size = "l",
+        textInput("edit_invoice_no", "No. Invoice", value = purchase_data$Informasi$Invoice),
+        dateInput("edit_tanggal", "Tanggal", value = as.Date(purchase_data$Informasi$Tanggal)),
+        textInput("edit_nama_peminta", "Nama Peminta", value = purchase_data$Informasi$Nama_Peminta),
+        hr(), h4("Daftar Barang:"),
+        renderTable({
+          df <- purchase_data$Barang
+          df$Harga <- sapply(df$Harga, format_rupiah)
+          df$After_Discount <- sapply(df$After_Discount, format_rupiah)
+          df[, c("Kode", "Barang", "Harga", "Quantity", "After_Discount")]
+        }, striped = TRUE, hover = TRUE, bordered = TRUE),
+        footer = tagList(
+          actionButton("confirm_edit", "💾 Simpan Perubahan", class = "btn-success"),
+          modalButton("Batal")
+        )
+      ))
+      values$editing_invoice <- inv
+    }
+  })
+  
+  observeEvent(input$confirm_edit, {
+    if(!is.null(values$editing_invoice) && values$editing_invoice %in% names(values$all_purchases)) {
+      old_invoice <- values$editing_invoice
+      new_invoice <- input$edit_invoice_no
+      
+      values$all_purchases[[old_invoice]]$Informasi$Tanggal <- as.character(input$edit_tanggal)
+      values$all_purchases[[old_invoice]]$Informasi$Nama_Peminta <- input$edit_nama_peminta
+      
+      if(new_invoice != old_invoice) {
+        values$all_purchases[[new_invoice]] <- values$all_purchases[[old_invoice]]
+        values$all_purchases[[old_invoice]] <- NULL
+        values$all_purchases[[new_invoice]]$Informasi$Invoice <- new_invoice
+        
+        if(!is.null(values$return_list[[old_invoice]])) {
+          values$return_list[[new_invoice]] <- values$return_list[[old_invoice]]
+          values$return_list[[old_invoice]] <- NULL
+          values$return_list[[new_invoice]]$Informasi$Invoice <- new_invoice
+        }
+        
+        if(!is.null(values$received_quantities[[old_invoice]])) {
+          values$received_quantities[[new_invoice]] <- values$received_quantities[[old_invoice]]
+          values$received_quantities[[old_invoice]] <- NULL
+        }
+        
+        refresh_dropdowns()
+      }
+      
+      removeModal()
+      values$editing_invoice <- NULL
+      values$trigger <- values$trigger + 1
+      showNotification("Purchase berhasil diupdate!", type = "message")
+    }
+  })
+  
+  # Load for return
+  observeEvent(input$load_for_return, {
+    req(input$select_invoice_return != "", input$select_invoice_return %in% names(values$all_purchases))
+    
+    purchase_data <- values$all_purchases[[input$select_invoice_return]]
+    
+    updateTextInput(session, "return_invoice_no", value = purchase_data$Informasi$Invoice)
+    updateDateInput(session, "return_tanggal", value = as.Date(purchase_data$Informasi$Tanggal))
+    updateTextInput(session, "return_nama_peminta", value = purchase_data$Informasi$Nama_Peminta)
+    
+    barang_choices <- purchase_data$Barang$Barang
+    if(length(barang_choices) > 0) {
+      updateSelectInput(session, "select_return_barang", choices = barang_choices)
+    }
+    
+    values$current_purchase_data <- purchase_data$Barang
+    values$current_return <- data.frame(
+      Barang = character(), Rusak = numeric(), Rusak_Parsial = numeric(),
+      Harga = numeric(), Total_Refund = numeric(), stringsAsFactors = FALSE
+    )
+    
+    showNotification(paste("Data purchase", input$select_invoice_return, "loaded"), type = "message")
+    updateTabsetPanel(session, "main_tabs", selected = "process_return")
+  })
+  
+  # Add return
+  observeEvent(input$add_return, {
+    req(input$select_return_barang != "")
+    
+    if(input$jumlah_rusak == 0 && input$jumlah_rusak_parsial == 0) {
+      showNotification("Masukkan jumlah kerusakan", type = "warning")
+      return()
+    }
+    
+    if(input$select_return_barang %in% values$current_return$Barang) {
+      showNotification("Barang sudah ditambahkan!", type = "warning")
+      return()
+    }
+    
+    max_qty <- values$current_purchase_data$Quantity[values$current_purchase_data$Barang == input$select_return_barang]
+    
+    if(input$jumlah_rusak + input$jumlah_rusak_parsial > max_qty) {
+      showNotification(paste("Jumlah return melebihi quantity! Maksimal:", max_qty), type = "error")
+      return()
+    }
+    
+    item_data <- values$current_purchase_data[values$current_purchase_data$Barang == input$select_return_barang, ]
+    harga_after_discount <- item_data$After_Discount / item_data$Quantity
+    
+    new_return <- data.frame(
+      Barang = input$select_return_barang,
+      Rusak = input$jumlah_rusak,
+      Rusak_Parsial = input$jumlah_rusak_parsial,
+      Harga = harga_after_discount,
+      Total_Refund = (input$jumlah_rusak * harga_after_discount) + (input$jumlah_rusak_parsial * harga_after_discount * 0.5),
+      stringsAsFactors = FALSE
+    )
+    
+    values$current_return <- rbind(values$current_return, new_return)
+    
+    updateNumericInput(session, "jumlah_rusak", value = 0)
+    updateNumericInput(session, "jumlah_rusak_parsial", value = 0)
+    
+    showNotification("Return item added", type = "message")
+  })
+  
+  output$table_return_list <- renderTable({
+    req(nrow(values$current_return) > 0)
+    return_df <- values$current_return
+    data.frame(
+      Barang = return_df$Barang, `Rusak Total` = return_df$Rusak,
+      `Rusak Parsial` = return_df$Rusak_Parsial,
+      Harga = sapply(return_df$Harga, format_rupiah),
+      `Total Refund` = sapply(return_df$Total_Refund, format_rupiah)
+    )
+  }, striped = TRUE, hover = TRUE, bordered = TRUE)
+  
+  # Process return
+  observeEvent(input$process_return, {
+    if(nrow(values$current_return) == 0) {
+      showNotification("Tidak ada barang untuk direturn!", type = "warning")
+      return()
+    }
+    
+    invoice_no <- input$return_invoice_no
+    return_df <- values$current_return
+    total_refund <- sum(return_df$Total_Refund)
+    
+    values$return_list[[invoice_no]] <- list(
+      Informasi = data.frame(
+        Invoice = invoice_no, Tanggal = as.character(input$return_tanggal),
+        Peminta = input$return_nama_peminta, Total_Refund = total_refund,
+        stringsAsFactors = FALSE
+      ),
+      Return_Items = return_df
+    )
+    
+    for(i in 1:nrow(return_df)) {
+      item_name <- return_df$Barang[i]
+      returned_qty <- return_df$Rusak[i] + return_df$Rusak_Parsial[i]
+      
+      if(is.null(values$received_quantities[[invoice_no]])) {
+        initialize_received_quantities(invoice_no)
+      }
+      
+      current_received <- values$received_quantities[[invoice_no]][[item_name]]
+      if(is.null(current_received)) {
+        purchase_data <- values$all_purchases[[invoice_no]]
+        original_qty <- purchase_data$Barang$Quantity[purchase_data$Barang$Barang == item_name]
+        current_received <- original_qty
+      }
+      
+      new_received <- current_received - returned_qty
+      if(new_received < 0) new_received <- 0
+      
+      values$received_quantities[[invoice_no]][[item_name]] <- new_received
+    }
+    
+    values$last_processed_return <- list(
+      Informasi = values$return_list[[invoice_no]]$Informasi,
+      Return_Items = return_df
+    )
+    
+    values$trigger <- values$trigger + 1
+    
+    showNotification(paste("Return berhasil diproses! Total Refund:", format_rupiah(total_refund)), type = "message", duration = 8)
+  })
+  
+  output$return_invoice_display <- renderUI({
+    req(!is.null(values$last_processed_return))
+    
+    return_data <- values$last_processed_return
+    return_items <- return_data$Return_Items
+    
+    items_html <- lapply(1:nrow(return_items), function(i) {
+      item <- return_items[i, ]
+      tags$tr(
+        tags$td(item$Barang), tags$td(item$Rusak), tags$td(item$Rusak_Parsial),
+        tags$td(format_rupiah(item$Harga)), tags$td(format_rupiah(item$Total_Refund))
+      )
+    })
+    
+    tags$div(class = "return-invoice",
+             h3("INVOICE PURCHASE RETURN", align = "center"), hr(),
+             tags$table(style = "width: 100%;",
+                        tags$tr(tags$td(strong("No. PR:"), style = "width: 30%;"), tags$td(return_data$Informasi$Invoice[1])),
+                        tags$tr(tags$td(strong("Tanggal:"), style = "width: 30%;"), tags$td(return_data$Informasi$Tanggal[1])),
+                        tags$tr(tags$td(strong("Peminta:"), style = "width: 30%;"), tags$td(return_data$Informasi$Peminta[1]))
+             ), hr(),
+             h4("Detail Return:"),
+             tags$table(class = "table table-bordered", style = "width: 100%;",
+                        tags$thead(tags$tr(tags$th("Barang"), tags$th("Rusak Total"), tags$th("Rusak Parsial"), tags$th("Harga"), tags$th("Total Refund"))),
+                        tags$tbody(items_html)
+             ), hr(),
+             tags$table(style = "width: 100%;",
+                        tags$tr(tags$td(h4(strong("Total Refund:")), style = "width: 70%;"), 
+                                tags$td(h4(strong(format_rupiah(return_data$Informasi$Total_Refund[1]))), style = "text-align: right;"))
+             )
+    )
+  })
+  
+  # MAIN FINAL INVOICE DISPLAY - FIXED VERSION
+  output$final_invoice_display <- renderUI({
+    # Force refresh when trigger changes
+    values$trigger
+    
+    req(length(values$all_purchases) > 0)
+    
+    # Initialize all invoices
+    for(inv in names(values$all_purchases)) {
+      initialize_received_quantities(inv)
+    }
+    
+    # Calculate totals for all invoices
+    all_invoice_data <- list()
+    grand_total_subtotal <- 0
+    grand_total_discount <- 0
+    grand_total_ppn <- 0
+    grand_total_payment <- 0
+    grand_total_refund <- 0
+    grand_total_final <- 0
+    grand_total_items_ordered <- 0
+    grand_total_items_received <- 0
+    
+    # Create UI for each invoice
+    invoice_uis <- lapply(names(values$all_purchases), function(inv) {
+      purchase_data <- values$all_purchases[[inv]]
+      items <- purchase_data$Barang
+      payment <- calculate_invoice_payment(inv)
+      refund_amount <- calculate_total_refund(inv)
+      final_amount <- payment$total - refund_amount
+      
+      # Calculate invoice totals
+      inv_total_ordered <- 0
+      inv_total_received <- 0
+      
+      # Create rows for each item
+      item_rows <- lapply(1:nrow(items), function(i) {
+        item <- items[i, ]
+        original_qty <- item$Quantity
+        received_qty <- get_received_quantity(inv, item$Barang, original_qty)
+        returned_qty <- get_returned_quantity(inv, item$Barang)
+        
+        # Ensure consistency
+        if(received_qty + returned_qty > original_qty) {
+          received_qty <- original_qty - returned_qty
+          if(received_qty < 0) received_qty <- 0
+        }
+        
+        inv_total_ordered <<- inv_total_ordered + original_qty
+        inv_total_received <<- inv_total_received + received_qty
+        
+        percent <- if(original_qty > 0) (received_qty / original_qty) * 100 else 0
+        progress_color <- if(percent >= 100) "#4caf50" else if(percent > 0) "#ff9800" else "#f44336"
+        
+        if(received_qty == original_qty) {
+          status <- "Lengkap"
+          status_class <- "status-lengkap"
+        } else if(received_qty > 0) {
+          status <- "Belum Lengkap"
+          status_class <- "status-belum-lengkap"
+        } else {
+          status <- "Belum Diterima"
+          status_class <- "status-belum-diterima"
+        }
+        
+        safe_inv <- gsub("[^A-Za-z0-9]", "_", inv)
+        safe_item <- gsub("[^A-Za-z0-9]", "_", item$Barang)
+        qty_input_id <- paste0("qty_", safe_inv, "_", safe_item)
+        
+        max_receive <- original_qty - returned_qty
+        if(max_receive < 0) max_receive <- 0
+        
+        tags$tr(
+          tags$td(item$Kode, style = "border:1px solid #ddd;padding:8px"),
+          tags$td(item$Barang, style = "border:1px solid #ddd;padding:8px"),
+          tags$td(original_qty, style = "border:1px solid #ddd;padding:8px;text-align:center"),
+          tags$td(
+            div(class = "qty-input-group",
+                numericInput(qty_input_id, label = NULL, value = received_qty, 
+                             min = 0, max = max_receive, step = 1, width = "80px")
+            ),
+            style = "border:1px solid #ddd;padding:8px;text-align:center"
+          ),
+          tags$td(returned_qty, style = "border:1px solid #ddd;padding:8px;text-align:center;color:#f44336"),
+          tags$td(
+            div(class = "progress-bar-custom",
+                div(class = "progress-fill", style = paste0("width:", round(percent), "%;background-color:", progress_color),
+                    if(percent > 15) paste0(round(percent), "%") else ""
+                )
+            ),
+            style = "border:1px solid #ddd;padding:8px;width:120px"
+          ),
+          tags$td(
+            div(class = status_class, status),
+            style = "border:1px solid #ddd;padding:8px"
+          ),
+          tags$td(
+            div(class = "status-control",
+                tags$div(style = "display:flex;gap:5px;flex-wrap:wrap;",
+                         actionButton(paste0("btn_lengkap_", safe_inv, "_", safe_item), "Lengkap", class = "btn-success btn-status"),
+                         actionButton(paste0("btn_belum_lengkap_", safe_inv, "_", safe_item), "Belum Lengkap", class = "btn-warning btn-status"),
+                         actionButton(paste0("btn_belum_diterima_", safe_inv, "_", safe_item), "Belum Diterima", class = "btn-danger btn-status")
+                )
+            ),
+            style = "border:1px solid #ddd;padding:8px"
+          )
+        )
+      })
+      
+      # Update grand totals
+      grand_total_subtotal <<- grand_total_subtotal + payment$subtotal
+      grand_total_discount <<- grand_total_discount + payment$discount
+      grand_total_ppn <<- grand_total_ppn + payment$ppn
+      grand_total_payment <<- grand_total_payment + payment$total
+      grand_total_refund <<- grand_total_refund + refund_amount
+      grand_total_final <<- grand_total_final + final_amount
+      grand_total_items_ordered <<- grand_total_items_ordered + inv_total_ordered
+      grand_total_items_received <<- grand_total_items_received + inv_total_received
+      
+      inv_percent <- if(inv_total_ordered > 0) (inv_total_received / inv_total_ordered) * 100 else 0
+      
+      # Store invoice data for summary table
+      all_invoice_data[[length(all_invoice_data) + 1]] <<- list(
+        no = length(all_invoice_data) + 1,
+        invoice = inv,
+        subtotal = payment$subtotal,
+        discount = payment$discount,
+        ppn = payment$ppn,
+        total_payment = payment$total,
+        refund = refund_amount,
+        final = final_amount
+      )
+      
+      tags$div(class = "invoice-card",
+               tags$div(class = "invoice-header",
+                        onclick = "this.nextElementSibling.classList.toggle('show')",
+                        tags$div(style = "display:flex;justify-content:space-between;align-items:center",
+                                 tags$div(
+                                   tags$strong(inv),
+                                   tags$span(style = "margin-left:15px;font-size:12px", 
+                                             paste(purchase_data$Informasi$Tanggal, "|", purchase_data$Informasi$Nama_Peminta))
+                                 ),
+                                 tags$div(
+                                   tags$span(style = "margin-right:15px", paste("Dibayar:", format_rupiah(final_amount))),
+                                   tags$span("▼")
+                                 )
+                        )
+               ),
+               tags$div(class = "invoice-body",
+                        tags$h5("Daftar Barang & Status Penerimaan:", style = "margin-top:0"),
+                        tags$p(style = "color:#666;font-size:12px", "Ubah jumlah diterima atau klik tombol status untuk mengubah status penerimaan setiap barang:"),
+                        tags$p(style = "color:#f44336;font-size:11px", "Note: Jumlah maksimal Terima = Pesan - Return"),
+                        tags$table(style = "width:100%;border-collapse:collapse",
+                                   tags$thead(
+                                     tags$tr(
+                                       tags$th("Kode"), tags$th("Barang"),
+                                       tags$th("Pesan", style = "text-align:center"),
+                                       tags$th("Terima", style = "text-align:center"),
+                                       tags$th("Return", style = "text-align:center"),
+                                       tags$th("Progress", style = "text-align:center"),
+                                       tags$th("Status"),
+                                       tags$th("Atur Status", style = "text-align:center")
+                                     )
+                                   ),
+                                   tags$tbody(item_rows)
+                        ),
+                        tags$hr(),
+                        tags$div(style = "text-align:right",
+                                 tags$p(strong("Subtotal (berdasarkan diterima):"), format_rupiah(payment$subtotal)),
+                                 tags$p(strong("Diskon:"), format_rupiah(payment$discount), style = "color:#4caf50"),
+                                 tags$p(strong("PPN 11%:"), format_rupiah(payment$ppn), style = "color:#ff9800"),
+                                 tags$p(strong("Total Dibayar Sebelum Refund:"), format_rupiah(payment$total)),
+                                 if(refund_amount > 0) tags$p(strong("Refund:"), format_rupiah(refund_amount), style = "color:#f44336"),
+                                 tags$hr(),
+                                 tags$h3(strong("JUMLAH AKHIR DIBAYAR:"), format_rupiah(final_amount), style = "color:#2e7d32; font-size:20px; margin-top:10px;")
+                        ),
+                        tags$div(style = "margin-top:15px",
+                                 tags$small(paste("Tingkat penerimaan invoice:", round(inv_percent), "%")),
+                                 div(class = "progress-bar-custom", style = "width:200px;margin-top:5px",
+                                     div(class = "progress-fill", style = paste0("width:", round(inv_percent), "%;background-color:#2196f3"),
+                                         paste0(round(inv_percent), "%")
+                                     )
+                                 )
+                        )
+               )
+      )
+    })
+    
+    # Create summary table rows
+    summary_rows <- lapply(all_invoice_data, function(data) {
+      tags$tr(
+        tags$td(data$no, style = "text-align: center;"),
+        tags$td(data$invoice),
+        tags$td(format_rupiah(data$subtotal), style = "text-align: right;"),
+        tags$td(format_rupiah(data$discount), style = "text-align: right; color: #4caf50;"),
+        tags$td(format_rupiah(data$ppn), style = "text-align: right; color: #ff9800;"),
+        tags$td(format_rupiah(data$total_payment), style = "text-align: right;"),
+        tags$td(format_rupiah(data$refund), style = "text-align: right; color: #d32f2f;"),
+        tags$td(format_rupiah(data$final), style = "text-align: right; font-weight: bold; background-color: #e8f5e9;")
+      )
+    })
+    
+    overall_percent <- if(grand_total_items_ordered > 0) (grand_total_items_received / grand_total_items_ordered) * 100 else 0
+    
+    tags$div(
+      tags$h4("Ringkasan Keuangan per Invoice:", style = "margin-top:0"),
+      tags$table(class = "invoice-table",
+                 tags$thead(
+                   tags$tr(
+                     tags$th("No."), tags$th("Invoice"),
+                     tags$th("Subtotal"), tags$th("Diskon 5%"),
+                     tags$th("PPN 11%"), tags$th("Total Dibayar"),
+                     tags$th("Refund"), tags$th("Akhir Dibayar")
+                   )
+                 ),
+                 tags$tbody(
+                   summary_rows,
+                   tags$tr(class = "total-row",
+                           tags$td(colspan = "2", strong("TOTAL"), style = "text-align: right;"),
+                           tags$td(strong(format_rupiah(grand_total_subtotal)), style = "text-align: right;"),
+                           tags$td(strong(format_rupiah(grand_total_discount)), style = "text-align: right;"),
+                           tags$td(strong(format_rupiah(grand_total_ppn)), style = "text-align: right;"),
+                           tags$td(strong(format_rupiah(grand_total_payment)), style = "text-align: right;"),
+                           tags$td(strong(format_rupiah(grand_total_refund)), style = "text-align: right;"),
+                           tags$td(strong(format_rupiah(grand_total_final)), style = "text-align: right; background-color: #fff3e0; font-size:16px;")
+                   )
+                 )
+      ),
+      tags$hr(),
+      invoice_uis,
+      tags$div(class = "summary-box",
+               tags$h4("Ringkasan Pembayaran & Penerimaan Akhir:", style = "margin-top: 0; color: #e65100;"),
+               tags$hr(),
+               tags$table(
+                 tags$tr(tags$td(strong("Total Subtotal:"), style = "width: 50%; padding: 8px;"),
+                         tags$td(strong(format_rupiah(grand_total_subtotal)), style = "text-align: right; padding: 8px;")),
+                 tags$tr(tags$td(strong("Total Diskon:"), style = "padding: 8px; color: #4caf50;"),
+                         tags$td(strong(format_rupiah(grand_total_discount)), style = "text-align: right; padding: 8px; color: #4caf50;")),
+                 tags$tr(tags$td(strong("Total PPN 11%:"), style = "padding: 8px; color: #ff9800;"),
+                         tags$td(strong(format_rupiah(grand_total_ppn)), style = "text-align: right; padding: 8px; color: #ff9800;")),
+                 tags$tr(tags$td(strong("Total Refund:"), style = "padding: 8px; color: #d32f2f;"),
+                         tags$td(strong(format_rupiah(grand_total_refund)), style = "text-align: right; padding: 8px; color: #d32f2f;")),
+                 tags$tr(tags$td(tags$hr(style = "margin: 5px 0;"), style = "padding: 0;"),
+                         tags$td(tags$hr(style = "margin: 5px 0;"), style = "padding: 0;")),
+                 tags$tr(tags$td(strong("JUMLAH AKHIR DIBAYAR:", style = "font-size: 18px;")),
+                         tags$td(strong(format_rupiah(grand_total_final), style = "font-size: 22px; color: #2e7d32;"), style = "text-align: right; padding: 8px;")),
+                 tags$tr(tags$td(tags$hr(style = "margin: 5px 0;"), style = "padding: 0;"),
+                         tags$td(tags$hr(style = "margin: 5px 0;"), style = "padding: 0;")),
+                 tags$tr(tags$td(strong("Total Item Dipesan:"), style = "padding: 8px;"),
+                         tags$td(strong(grand_total_items_ordered), style = "text-align: right; padding: 8px;")),
+                 tags$tr(tags$td(strong("Total Item Diterima:"), style = "padding: 8px; color: #4caf50;"),
+                         tags$td(strong(grand_total_items_received), style = "text-align: right; padding: 8px; color: #4caf50;")),
+                 tags$tr(tags$td(strong("Tingkat Penerimaan Keseluruhan:"), style = "padding: 8px;"),
+                         tags$td(style = "text-align: right; padding: 8px;",
+                                 div(class = "progress-bar-custom", style = "width: 200px; display: inline-block;",
+                                     div(class = "progress-fill", style = paste0("width:", round(overall_percent), "%;background-color:#2196f3"),
+                                         paste0(round(overall_percent), "%")
+                                     )
+                                 )
+                         )
+                 )
+               )
+      )
+    )
+  })
+  
+  # Create observers for all inputs
+  observeEvent(values$trigger, {
+    req(length(values$all_purchases) > 0)
+    
+    # Initialize all received quantities
+    for(inv in names(values$all_purchases)) {
+      initialize_received_quantities(inv)
+    }
+    
+    # Remove existing observers
+    for(obs_name in names(session$userData)) {
+      if(grepl("^qty_", obs_name) || grepl("^btn_", obs_name)) {
+        if(!is.null(session$userData[[obs_name]])) {
+          tryCatch({ session$userData[[obs_name]]$destroy() }, error = function(e) {})
+        }
+      }
+    }
+    
+    session$userData <- list()
+    
+    # Create new observers for all items
+    for(inv in names(values$all_purchases)) {
+      purchase_data <- values$all_purchases[[inv]]
+      items <- purchase_data$Barang
+      
+      for(i in 1:nrow(items)) {
+        item <- items[i, ]
+        safe_inv <- gsub("[^A-Za-z0-9]", "_", inv)
+        safe_item <- gsub("[^A-Za-z0-9]", "_", item$Barang)
+        
+        local_inv <- inv
+        local_item <- item$Barang
+        local_item_qty <- item$Quantity
+        local_returned <- get_returned_quantity(inv, item$Barang)
+        local_max_receive <- local_item_qty - local_returned
+        if(local_max_receive < 0) local_max_receive <- 0
+        
+        qty_input_id <- paste0("qty_", safe_inv, "_", safe_item)
+        
+        session$userData[[qty_input_id]] <- observeEvent(input[[qty_input_id]], {
+          new_qty <- input[[qty_input_id]]
+          if(!is.null(new_qty) && !is.na(new_qty)) {
+            if(new_qty < 0) new_qty <- 0
+            if(new_qty > local_max_receive) new_qty <- local_max_receive
+            update_received_quantity(local_inv, local_item, new_qty)
+          }
+        }, ignoreInit = TRUE, ignoreNULL = FALSE)
+        
+        btn_lengkap_id <- paste0("btn_lengkap_", safe_inv, "_", safe_item)
+        session$userData[[btn_lengkap_id]] <- observeEvent(input[[btn_lengkap_id]], {
+          max_receive <- local_item_qty - get_returned_quantity(local_inv, local_item)
+          if(max_receive < 0) max_receive <- 0
+          update_received_quantity(local_inv, local_item, max_receive)
+        }, ignoreInit = TRUE)
+        
+        btn_belum_lengkap_id <- paste0("btn_belum_lengkap_", safe_inv, "_", safe_item)
+        session$userData[[btn_belum_lengkap_id]] <- observeEvent(input[[btn_belum_lengkap_id]], {
+          max_receive <- local_item_qty - get_returned_quantity(local_inv, local_item)
+          if(max_receive < 0) max_receive <- 0
+          new_qty <- floor(max_receive * 0.5)
+          update_received_quantity(local_inv, local_item, new_qty)
+        }, ignoreInit = TRUE)
+        
+        btn_belum_diterima_id <- paste0("btn_belum_diterima_", safe_inv, "_", safe_item)
+        session$userData[[btn_belum_diterima_id]] <- observeEvent(input[[btn_belum_diterima_id]], {
+          update_received_quantity(local_inv, local_item, 0)
+        }, ignoreInit = TRUE)
+      }
+    }
+  })
+  
+  # Print return
+  observeEvent(input$print_return, {
+    if(is.null(values$last_processed_return)) {
+      showNotification("Tidak ada return yang diproses!", type = "warning")
+      return()
+    }
+    session$sendCustomMessage(type = 'print', message = list())
+  })
+  
+  # Summary tables
+  output$table_summary <- renderTable({
+    req(length(values$all_purchases) > 0)
+    summary_list <- list()
+    for(inv in names(values$all_purchases)) {
+      purchase_data <- values$all_purchases[[inv]]
+      for(i in 1:nrow(purchase_data$Barang)) {
+        item <- purchase_data$Barang[i, ]
+        summary_list[[paste0(inv, i)]] <- data.frame(
+          Invoice = inv, Barang = item$Barang, Quantity = item$Quantity,
+          Harga = format_rupiah(item$Harga), Subtotal = format_rupiah(item$Harga * item$Quantity),
+          Diskon = ifelse(item$Discount > 0, paste0(item$Discount, "%"), "-"),
+          Setelah_Diskon = format_rupiah(item$After_Discount), stringsAsFactors = FALSE
+        )
+      }
+    }
+    do.call(rbind, summary_list)
+  }, striped = TRUE, hover = TRUE, bordered = TRUE)
+  
+  output$table_return_summary <- renderTable({
+    req(length(values$return_list) > 0)
+    return_summary <- list()
+    for(inv in names(values$return_list)) {
+      return_data <- values$return_list[[inv]]
+      for(i in 1:nrow(return_data$Return_Items)) {
+        item <- return_data$Return_Items[i, ]
+        return_summary[[paste0(inv, i)]] <- data.frame(
+          Invoice = inv, Barang = item$Barang, `Rusak Total` = item$Rusak,
+          `Rusak Parsial` = item$Rusak_Parsial,
+          `Harga` = format_rupiah(item$Harga),
+          `Total Refund` = format_rupiah(item$Total_Refund), stringsAsFactors = FALSE
+        )
+      }
+    }
+    if(length(return_summary) > 0) do.call(rbind, return_summary) else data.frame(Message = "Belum ada data return")
+  }, striped = TRUE, hover = TRUE, bordered = TRUE)
+  
+  output$damage_summary <- renderPrint({
+    req(length(values$return_list) > 0)
+    for(inv in names(values$return_list)) {
+      return_data <- values$return_list[[inv]]
+      cat("\n=============================================================\n")
+      cat("                 INVOICE PURCHASE RETURN\n")
+      cat("=============================================================\n\n")
+      cat("No. PR    :", return_data$Informasi$Invoice, "\n")
+      cat("Tanggal   :", return_data$Informasi$Tanggal, "\n")
+      cat("Peminta   :", return_data$Informasi$Peminta, "\n\n")
+      cat("=============================================================\n\n")
+      
+      for(i in 1:nrow(return_data$Return_Items)) {
+        item <- return_data$Return_Items[i, ]
+        if(item$Rusak > 0) {
+          cat("Nama Barang               :", item$Barang, "\n")
+          cat("Kondisi Barang            : Rusak Total\n")
+          cat("Jumlah Barang             :", item$Rusak, "\n")
+          cat("Total Pengembalian Uang   :", format_rupiah(item$Rusak * item$Harga), "\n")
+          cat("Next Step                 : Retur (Refund 100%)\n")
+          cat("-------------------------------------------------------------\n")
+        }
+        if(item$Rusak_Parsial > 0) {
+          cat("Nama Barang               :", item$Barang, "\n")
+          cat("Kondisi Barang            : Rusak Parsial\n")
+          cat("Jumlah Barang             :", item$Rusak_Parsial, "\n")
+          cat("Total Pengembalian Uang   :", format_rupiah(item$Rusak_Parsial * item$Harga * 0.5), "\n")
+          cat("Request                   : Reimburse (Refund 50%)\n")
+          cat("-------------------------------------------------------------\n")
+        }
+      }
+      cat("\n")
+    }
+  })
+}
+
+# Run the app
+shinyApp(ui = ui, server = server)
+
+
